@@ -1,0 +1,12 @@
+{% extends 'layout.html' %}
+{% block body %}
+    {% if articles %}
+        <h1>{{articles[0]}}</h1>
+        <h1>{{articles[1]}}</h1>
+        <h1>{{articles[2]}}</h1>
+        <h1>{{articles[3]}}</h1>
+        <h1>{{articles[4]}}</h1>
+    {% else %}
+        <h1>You have given a wrong id</h1>
+    {% endif %}
+{% endblock%}
