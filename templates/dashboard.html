@@ -11,6 +11,7 @@
         <th>Title</th>
         <th>Author</th>
         <th>Date</th>
+        <th>Favorite</th>
         <th></th>
         <th></th>
       </tr>
@@ -19,7 +20,12 @@
           <td>{{article[0]}}</td>
           <td><a href="article/{{article[0]}}">{{article[1]}}</a></td>
           <td>{{article[2]}}</td>
-          <td>{{article[4]}}</td>
+          <td>{{article[5]}}</td>
+          {% if article[4]==0 %}
+            <td>NO</td>
+          {% else %}
+            <td>YES</td>
+          {% endif %}
           <td><a href="/edit_article/{{article[0]}}" class="btn btn-default pull-right">Edit</a></td>
           <td>
             <form action="{{url_for('delete_article', id=article[0])}}" method="post">

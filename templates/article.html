@@ -5,7 +5,12 @@
         <h1>{{articles[1]}}</h1>
         <h1>{{articles[2]}}</h1>
         <h1>{{articles[3]}}</h1>
-        <h1>{{articles[4]}}</h1>
+        {% if articles[4] %}
+            <h1>Favorite</h1>
+        {% else %}
+            <h1>Not Favorite</h1>
+        {% endif %}
+        <h1>{{articles[5]}}</h1>
     {% else %}
         <h1>You have given a wrong id</h1>
     {% endif %}
