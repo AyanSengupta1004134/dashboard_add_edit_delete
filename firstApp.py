@@ -8,9 +8,6 @@ from functools import wraps
 
 app = Flask(__name__)
 
-# Articles = Articles()
-# length = len(Articles)
-
 def is_logged_in(f):
     @wraps(f)
     def wrap(*args, **kwargs):
@@ -84,38 +81,33 @@ def register():
         cursor.execute("Insert into users(name,email,username,password) Values(?, ?, ?, ?)",(name,email,username,password))
         connection.commit()
         cursor.close()
-        flash("You are now registered and can login", 'success')
-
+        flash('You are now registered', 'success')
         return redirect(url_for('home'))
     return render_template('register.html', form=form)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        # Get Form Fields
         username = request.form['username']
         password_candidate = request.form['password']
-
         conn = sqlite3.connect('db/users.db')
-        # Create cursor
         cur = conn.cursor()
-
-        # Get user by username
         result = cur.execute("SELECT * FROM users WHERE username=?", (username,))
-
         if result:
-            # Get stored hash
             data = cur.fetchone()
             password = data[4]
-
-            # Compare Passwords
             if sha256_crypt.verify(password_candidate, password):
                 # Passed
                 session['logged_in'] = True
                 session['username'] = username
 
-                flash('You are now logged in', 'success')
-                return redirect(url_for('dashboard'))
+                
+                if username == 'ayan':
+                    flash('You are now logged in', 'success')
+                    return redirect(url_for('admin'))
+                else:
+                    flash('You are now logged in', 'success')
+                    return redirect(url_for('dashboard'))
             else:
                 error = 'Invalid login'
                 return render_template('login.html', error=error)
@@ -126,6 +118,21 @@ def login():
             return render_template('login.html', error=error)
 
     return render_template('login.html')
+
+
+@app.route('/admin', methods=['GET', 'POST'])
+def admin():
+    if request.method == 'POST':
+        name1= request.form.get('admin')
+        name2 = request.form.get('dash_board')
+        if name1 == 'on':
+            return "Hello World"
+        elif name2 == 'on':
+            return redirect(url_for('dashboard'))
+        else:
+            error = 'Please choice anyone to move forward'
+            return render_template('admin.html', error =error)
+    return render_template('admin.html')
 
 class ArticleForm(Form):
     title = StringField('Title', [validators.Length(min=1, max=200)])
@@ -143,13 +150,12 @@ def add_article():
         fav = form.favorite.data
         connection = sqlite3.connect('db/articles_fav.db')
         cursor = connection.cursor()
-        cursor.execute("Insert into articles_fav(title, author, body, fav) Values(?, ?, ?, ?)",(title, "session['username']", body, fav))
+        cursor.execute("Insert into articles_fav(title, author, body, fav) Values(?, ?, ?, ?)",(title, session['username'], body, fav))
         connection.commit()
         cursor.close()
         flash("Article Created", 'success')
         return redirect(url_for('dashboard'))
     return render_template('add_articles.html', form=form)
-
 
 @app.route('/edit_article/<int:id>', methods=['GET', 'POST'])
 @is_logged_in
@@ -171,8 +177,6 @@ def edit_article(id):
             fav=1
         else:
             fav=0
-        # connection = sqlite3.connect('db/articles.db')
-        # cursor = connection.cursor()
         cursor.execute("Update articles_fav set title=?,body=?,fav=? where id=?",(title,body,fav,id))
         connection.commit()
         cursor.close()
@@ -195,7 +199,11 @@ def dashboard():
     result = cursor.execute("Select * from articles_fav")
     articles = cursor.fetchall()
     if result:
-        return render_template('dashboard.html', articles=articles)
+        Article = []
+        for i in articles:
+            if i[2] == session['username']:
+                Article.append(i)
+        return render_template('dashboard.html', articles=Article)
     else:
         return render_template('dashboard.html', msg = "No data found")
 
