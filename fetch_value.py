@@ -1,8 +1,8 @@
 import sqlite3
 
-conn = sqlite3.connect('db/articles_fav.db')
+conn = sqlite3.connect('db/users.db')
 cursor = conn.cursor()
-sql = "Select * from articles_fav "
+sql = "Select * from users"
 a = cursor.execute(sql)
 rows = cursor.fetchall()
 conn.commit()

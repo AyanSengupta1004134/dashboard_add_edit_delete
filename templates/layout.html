@@ -3,10 +3,24 @@
   <head>
     <meta charset="utf-8">
     <title>MyFlaskApp</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='js/admin.js') }}">
+
   </head>
   <body>
     {% include 'includes/_navbar.html' %}
+    {% if session.page == 'admin' %}
+      <div class="topnav">
+        <div class="container">
+          <a class="in-active" style="padding-left: 0px;" href="/admin">Home</a>
+          <a class="in-active" href="/users">Users</a>
+          <a class="in-active" href="/articles">Articles</a>
+        </div>
+      </div>
+    {% endif %}
     <div class="container">
         {% include 'includes/_messages.html' %}
         {% block body %}{% endblock %}

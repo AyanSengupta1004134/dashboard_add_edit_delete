@@ -1,20 +1,41 @@
-<!DOCTYPE html>
-<html>
-    <title>Admin Choice Page</title>
-    <body>
-        <center>
-            <ul>
-                <form action="" method="POST">
-                    <div>
-                        <input type="checkbox" name='admin'>
-                        <h2>Want to Go to Admin Page</h2></br>
-                        <input type="checkbox" name='dash_board'>
-                        <h2>Want to Go to DashBoard Page</h2></br>
-                        <input type="submit" class="btn btn-primary" value="Submit">
-                    </div>
-                </form>
-            
-            </ul>
-        </center>
-    </body>
-</html>
+{% extends 'layout.html' %}
+
+{% block body %}
+    <script>
+        $(document).ready(function () {
+            $('a').click(function () {
+                $('a').addClass('in-active');       // ADD CLASS TO ALL THE TAGS.
+                if ($(this).hasClass('in-active')) {    // CHECK IF THE TAG HAS 'in-active' CLASS.
+                    $(this)
+                        .removeClass('in-active')
+                        .addClass('active');
+                }
+            })
+        });
+    </script>
+
+
+    <h1>Admin Page</h1>
+    <h3> Welcome {{session.username}} </h3>
+    <hr>
+  
+    <table class="table table-striped" name="table">
+        <tr>
+            <th>ID</th>
+            <th>UserName</th>
+            <th>Give Access</th>
+        </tr>
+        {% for adm in admin %}
+            <tr>
+                <td>{{adm[0]}}</td>
+                <td>{{adm[1]}}</td>
+                <td>
+                    <form action="{{url_for('add_admin', id=adm[0])}}" method='POST'>
+                        <input type="submit" value="Admin Permisson" class="btn btn-success">
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+    
+{% endblock %}

@@ -8,6 +8,7 @@ from functools import wraps
 
 app = Flask(__name__)
 
+history = {}
 def is_logged_in(f):
     @wraps(f)
     def wrap(*args, **kwargs):
@@ -21,22 +22,46 @@ def is_logged_in(f):
 @app.route('/')
 @is_logged_in
 def home():
+    session['page'] = 'home'
     return render_template('home.html')
 
+
+@app.route('/users')
+def all_user():
+    session['page'] = 'admin'
+    connection = sqlite3.connect('db/users.db')
+    cursor = connection.cursor()
+    result = cursor.execute("Select * from users")
+    users = cursor.fetchall()
+    if result:
+        return render_template('users.html', users=users)
+    else:
+        return render_template('users.html', msg='No user to display')
 
 @app.route('/about')
 @is_logged_in
 def about():
+    session['page'] = 'about'
     return render_template('about.html')
 
 
 @app.route('/articles')
 @is_logged_in
 def articles():
+    session['page'] = 'articles'
     connection = sqlite3.connect('db/articles_fav.db')
     cursor = connection.cursor()
-    result = cursor.execute("Select * from articles_fav")
-    articles = cursor.fetchall()
+    con = sqlite3.connect('db/admin.db')
+    cur = con.cursor()
+    res = cur.execute("Select username from admin")
+    admin = cur.fetchall()
+    admin = [i[0] for i in admin]
+    if session['username'] in admin:
+        result = cursor.execute("Select * from articles_fav")
+        articles = cursor.fetchall()
+    else:
+        result = cursor.execute('Select * from articles_fav where author=?',(session['username'],))
+        articles = cursor.fetchall()
     if result:
         return render_template('articles.html', articles=articles)
     else:
@@ -45,6 +70,7 @@ def articles():
 @app.route('/article/<int:id>')
 @is_logged_in
 def article(id):
+    session['page'] = 'article'
     connection = sqlite3.connect('db/articles_fav.db')
     cursor = connection.cursor()
     result = cursor.execute("Select * from articles_fav")
@@ -75,7 +101,15 @@ def register():
         email = form.email.data 
         username = form.username.data  
         password = sha256_crypt.encrypt(form.password.data)
-
+        admin = request.form.get("admin")
+        # if user asks for admin permission then username, password will be added to the tempadmin table for the admin to validate
+        if admin == 'on':
+            conn = sqlite3.connect('db/temp_admin.db')
+            cur = conn.cursor()
+            cur.execute("Insert into temp_admin(username, password) Values(?, ?)",(username, password))
+            conn.commit()
+            cur.close()
+            flash("Data is added to temporary admin table to validate", 'success')
         connection = sqlite3.connect('db/users.db')
         cursor = connection.cursor()
         cursor.execute("Insert into users(name,email,username,password) Values(?, ?, ?, ?)",(name,email,username,password))
@@ -87,6 +121,7 @@ def register():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    session.clear()
     if request.method == 'POST':
         username = request.form['username']
         password_candidate = request.form['password']
@@ -101,10 +136,16 @@ def login():
                 session['logged_in'] = True
                 session['username'] = username
 
-                
-                if username == 'ayan':
+                # if the user is an admin then redirect him to admin choice page or else redirect him to dashboard
+                connection = sqlite3.connect('db/admin.db')
+                cursor = connection.cursor()
+                res = cursor.execute("Select username from admin")
+                admin = cursor.fetchall()
+                admin = [i[0] for i in admin]
+                if username in admin:
                     flash('You are now logged in', 'success')
-                    return redirect(url_for('admin'))
+                    session['admin'] = True
+                    return redirect(url_for('admin_choice'))
                 else:
                     flash('You are now logged in', 'success')
                     return redirect(url_for('dashboard'))
@@ -121,18 +162,63 @@ def login():
 
 
 @app.route('/admin', methods=['GET', 'POST'])
+@is_logged_in
 def admin():
+    session['page'] = 'admin'
+    connection = sqlite3.connect('db/admin.db')
+    cur = connection.cursor()
+    res = cur.execute('Select username from admin')
+    adm = cur.fetchall()
+    adm = [i[0] for i in adm]
+    if session['username'] in adm:
+        conn = sqlite3.connect('db/temp_admin.db')
+        cursor = conn.cursor()
+        result = cursor.execute("Select * from temp_admin")
+        admin = cursor.fetchall()
+        if result:
+            return render_template('admin.html', admin=admin)
+        else:
+            return render_template('admin.html', msg="No data available")
+    else:
+        return redirect(url_for('dashboard'))
+    
+
+@app.route('/add_admin/<int:id>', methods=['GET', 'POST'])
+@is_logged_in
+def add_admin(id):
+    session['page'] = 'admin'
+    connection = sqlite3.connect('db/admin.db')
+    conn = sqlite3.connect('db/temp_admin.db')
+    cursor = connection.cursor()
+    cur = conn.cursor()
+    result = cur.execute('Select * from temp_admin')
+    admin = cur.fetchall()
+    if result:
+        for ad in admin:
+            if ad[0] == id:
+                cursor.execute('Insert into admin(username, password) Values(?, ?)', (ad[1],ad[2]))
+                cur.execute('Delete from temp_admin where id=?',(id,))
+                flash('{} added successfully as admin'.format(ad[1]), 'success')
+                print('Hi')
+                conn.commit()
+                connection.commit()
+    return redirect(url_for('admin'))
+
+@app.route('/admin_choice', methods=['GET', 'POST'])
+@is_logged_in
+def admin_choice():
+    session['page'] = 'admin_choice'
     if request.method == 'POST':
         name1= request.form.get('admin')
         name2 = request.form.get('dash_board')
         if name1 == 'on':
-            return "Hello World"
+            return redirect(url_for('admin'))
         elif name2 == 'on':
             return redirect(url_for('dashboard'))
         else:
             error = 'Please choice anyone to move forward'
-            return render_template('admin.html', error =error)
-    return render_template('admin.html')
+            return render_template('admin_choice.html', error =error)
+    return render_template('admin_choice.html')
 
 class ArticleForm(Form):
     title = StringField('Title', [validators.Length(min=1, max=200)])
@@ -141,8 +227,9 @@ class ArticleForm(Form):
 
 
 @app.route('/add_articles', methods=['GET', 'POST'])
-# @is_logged_in
+@is_logged_in
 def add_article():
+    session['page'] = 'add_article'
     form = ArticleForm(request.form)
     if request.method == 'POST' and form.validate():
         title = form.title.data 
@@ -160,6 +247,7 @@ def add_article():
 @app.route('/edit_article/<int:id>', methods=['GET', 'POST'])
 @is_logged_in
 def edit_article(id):
+    session['page'] = 'edit_article'
     connection = sqlite3.connect('db/articles_fav.db')
     cursor = connection.cursor()
     cursor.execute('Select * from articles_fav where id=?',(id,))
@@ -185,7 +273,6 @@ def edit_article(id):
     return render_template('edit_article.html', form=form)
 
 @app.route('/logout')
-@is_logged_in
 def logout():
     session.clear()
     flash('You are logged out', 'success')
@@ -194,6 +281,7 @@ def logout():
 @app.route('/dashboard')
 @is_logged_in
 def dashboard():
+    session['page'] = 'dashboard'
     connection = sqlite3.connect('db/articles_fav.db')
     cursor = connection.cursor()
     result = cursor.execute("Select * from articles_fav")
@@ -211,12 +299,23 @@ def dashboard():
 @app.route('/delete_article/<int:id>', methods=['GET', 'POST'])
 @is_logged_in
 def delete_article(id):
+    session['page'] = 'dashboard'
     connection = sqlite3.connect('db/articles_fav.db')
     cursor = connection.cursor()
     cursor.execute('DELETE FROM articles_fav WHERE id=?',(id,))
     connection.commit()
     flash('Article Deleted', 'success')
     return redirect(url_for('dashboard'))
+
+@app.route('/delete_user/<int:id>', methods =['GET', 'POST'])
+def delete_user(id):
+    session['page'] = 'admin'
+    connection = sqlite3.connect('db/users.db')
+    cursor = connection.cursor()
+    cursor.execute('Delete from users where id=?',(id,))
+    connection.commit()
+    flash('User deleted', 'success')
+    return redirect(url_for('all_user'))
 
 if __name__ == '__main__':
     app.secret_key='secret123'
