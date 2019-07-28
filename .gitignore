@@ -1,0 +1,5 @@
+.vscode/
+demo.*
+templates/demo.html
+demo.*
+__pycache__/
